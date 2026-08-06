@@ -1,6 +1,6 @@
 # Acme Invoice Automation
 
-Multi-agent AP prototype for **Acme Corp** ([Galatiq case](https://github.com/galatiq-ai/galatiq-case-invoices)).
+Multi-agent AP prototype for **Acme Corp**[G](https://github.com/galatiq-ai/galatiq-case-invoices)
 
 **Ingest → Extract → Validate → Approve (reflect) → Pay / Reject**
 
@@ -70,59 +70,80 @@ flowchart TD
   Pay --> MockPay[mock_payment]
 ```
 
-| Agent | Role |
-|---|---|
-| Ingestion | PDF / TXT / JSON / CSV / XML |
+
+
+
+| Agent      | Role                                                 |
+| ---------- | ---------------------------------------------------- |
+| Ingestion  | PDF / TXT / JSON / CSV / XML                         |
 | Extraction | Parsers first; Grok + self-correction for messy text |
-| Validation | Inventory / vendor / price tools (hard vs soft) |
-| Approval | VP persona, $10k scrutiny, critique loop |
-| Payment | `mock_payment` only after validate **and** approve |
+| Validation | Inventory / vendor / price tools (hard vs soft)      |
+| Approval   | VP persona, $10k scrutiny, critique loop             |
+| Payment    | `mock_payment` only after validate **and** approve   |
+
 
 **Hard fails** short-circuit to reject (no payment). **Soft flags** (EUR, price drift, urgency) escalate VP scrutiny.
 
 ## Design choices (short)
 
-| Decision | Why |
-|---|---|
-| LangGraph | Explicit state, retry/critique edges, easy to test vs CrewAI/AutoGen |
-| Parsers before Grok | JSON/CSV/XML stay deterministic; LLM for messy TXT/PDF only |
-| Tools for stock/vendor | Money controls in code; model for judgment under uncertainty |
-| Critique approve→reject only | Payment-safety bias; production would add a human queue |
-| Heuristic fallback | Demos/CI work without credits; live Grok is the scoring path |
+
+| Decision                     | Why                                                                  |
+| ---------------------------- | -------------------------------------------------------------------- |
+| LangGraph                    | Explicit state, retry/critique edges, easy to test vs CrewAI/AutoGen |
+| Parsers before Grok          | JSON/CSV/XML stay deterministic; LLM for messy TXT/PDF only          |
+| Tools for stock/vendor       | Money controls in code; model for judgment under uncertainty         |
+| Critique approve→reject only | Payment-safety bias; production would add a human queue              |
+| Heuristic fallback           | Demos/CI work without credits; live Grok is the scoring path         |
+
+
+
 
 ## Results
 
-| Signal | Value |
-|---|---|
-| Sample suite STP | **8 / 16** approved + paid |
-| Hard-stopped rejects | **8 / 16** (stock / fraud / unknown SKU / bad data) |
-| Offline tests | **37 passed** |
-| Live Grok | INV-1001 APPROVED + paid (~6–10s) |
 
-| Invoice | Expected |
-|---|---|
-| INV-1001 / 1004 / 1006 / 1011 / 1015 | Approve → pay |
-| INV-1002 | Reject — GadgetX over stock |
-| INV-1003 | Reject — FakeItem / blocked vendor |
-| INV-1008 / 1016 | Reject — unknown items |
-| INV-1009 | Reject — negative qty / missing vendor |
-| INV-1005 / 1007 / 1013 | Reject — aggregated over-stock |
+| Signal               | Value                                               |
+| -------------------- | --------------------------------------------------- |
+| Sample suite STP     | **8 / 16** approved + paid                          |
+| Hard-stopped rejects | **8 / 16** (stock / fraud / unknown SKU / bad data) |
+| Offline tests        | **37 passed**                                       |
+| Live Grok            | INV-1001 APPROVED + paid (~6–10s)                   |
+
+
+
+| Invoice                              | Expected                               |
+| ------------------------------------ | -------------------------------------- |
+| INV-1001 / 1004 / 1006 / 1011 / 1015 | Approve → pay                          |
+| INV-1002                             | Reject — GadgetX over stock            |
+| INV-1003                             | Reject — FakeItem / blocked vendor     |
+| INV-1008 / 1016                      | Reject — unknown items                 |
+| INV-1009                             | Reject — negative qty / missing vendor |
+| INV-1005 / 1007 / 1013               | Reject — aggregated over-stock         |
+
+
+
 
 ## Configuration
 
-| Env var | Default | Purpose |
-|---|---|---|
-| `XAI_API_KEY` | _(empty)_ | xAI key (local `.env` only) |
-| `XAI_MODEL` | `grok-3` | Grok model |
-| `INVENTORY_DB_PATH` | `inventory.db` | SQLite path |
-| `APPROVAL_AMOUNT_THRESHOLD` | `10000` | VP scrutiny threshold |
-| `CONFIDENCE_THRESHOLD` | `0.7` | Extraction retry threshold |
+
+| Env var                     | Default        | Purpose                     |
+| --------------------------- | -------------- | --------------------------- |
+| `XAI_API_KEY`               | *(empty)*      | xAI key (local `.env` only) |
+| `XAI_MODEL`                 | `grok-3`       | Grok model                  |
+| `INVENTORY_DB_PATH`         | `inventory.db` | SQLite path                 |
+| `APPROVAL_AMOUNT_THRESHOLD` | `10000`        | VP scrutiny threshold       |
+| `CONFIDENCE_THRESHOLD`      | `0.7`          | Extraction retry threshold  |
+
+
+
 
 ## Troubleshooting
 
-| Symptom | Fix |
-|---|---|
-| `Inventory database not found` | `python scripts/init_db.py --force` |
-| `ModuleNotFoundError: acme_invoice` | `pip install -e .` in `.venv` |
-| HTTP 401 / 403 from xAI | Fix key / add credits, or use `--heuristic` |
-| Invoice path not found | Run from repo root: `data/invoices/...` |
+
+| Symptom                             | Fix                                         |
+| ----------------------------------- | ------------------------------------------- |
+| `Inventory database not found`      | `python scripts/init_db.py --force`         |
+| `ModuleNotFoundError: acme_invoice` | `pip install -e .` in `.venv`               |
+| HTTP 401 / 403 from xAI             | Fix key / add credits, or use `--heuristic` |
+| Invoice path not found              | Run from repo root: `data/invoices/...`     |
+
+
