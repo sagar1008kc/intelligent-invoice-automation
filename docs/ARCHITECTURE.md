@@ -1,18 +1,8 @@
 # Architecture
 
-Local multi-agent AP pipeline for Acme Corp.
+Deep dive for the Acme multi-agent AP pipeline. Overview diagrams live in the [README](../README.md).
 
 **Ingest → Extract → Validate → Approve (critique) → Pay / Reject**
-
-```text
-CLI / Streamlit
-      ↓
- LangGraph StateGraph
-      ↓
- ingest → extract ⟲ → validate → approve ⟲critique → pay|reject
-                         ↓
-                   SQLite inventory.db
-```
 
 | Concern | Choice |
 |---|---|

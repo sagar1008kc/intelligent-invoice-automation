@@ -4,21 +4,10 @@ Multi-agent AP prototype for **Acme Corp** ([Galatiq case](https://github.com/ga
 
 **Ingest → Extract → Validate → Approve (reflect) → Pay / Reject**
 
-LangGraph + xAI Grok · Local SQLite controls · Mock payments · CLI + Streamlit
+LangGraph + xAI Grok · Local SQLite · Mock payments · CLI + Streamlit
 
-> **60-second proof:** clean invoices pay in minutes; stock mismatches and fraud never hit the bank mock.  
+> Clean invoices pay in minutes; stock mismatches and fraud never hit the bank mock.  
 > `python main.py --invoice_path=data/invoices/invoice_1001.txt`
-
-## Results (observed)
-
-| Signal | Value |
-|---|---|
-| Sample suite STP | **8 / 16 approved + paid** (heuristic) |
-| Hard-stopped rejects | **8 / 16** (stock / fraud / unknown SKU / bad data) |
-| Offline tests | **37 passed** |
-| Live Grok | INV-1001 APPROVED + paid (~6–10s) |
-
-Screenshots and walkthrough: [docs/DEMO.md](docs/DEMO.md) · Business framing: [docs/BUSINESS_IMPACT.md](docs/BUSINESS_IMPACT.md)
 
 ## Quick start
 
@@ -27,7 +16,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt && pip install -e .
 
-cp .env.example .env   # set XAI_API_KEY=...
+cp .env.example .env          # set XAI_API_KEY=...
 python scripts/init_db.py --force
 
 python main.py --invoice_path=data/invoices/invoice_1001.txt
@@ -36,7 +25,8 @@ streamlit run app.py
 pytest -q
 ```
 
-Offline without credits: add `--heuristic` (CLI) or toggle **Offline heuristic LLM** in the UI.
+No API credits? Add `--heuristic` (or toggle offline mode in Streamlit).  
+Put keys only in `.env` — never commit it. Rotate any key shared in chat via [console.x.ai](https://console.x.ai).
 
 ## Architecture
 
@@ -50,6 +40,24 @@ CLI / Streamlit
                    SQLite inventory.db
 ```
 
+```mermaid
+flowchart TD
+  CLI[main.py CLI] --> Graph
+  UI[Streamlit app.py] --> Graph
+  Graph[LangGraph StateGraph]
+  Graph --> Ingest[IngestionAgent]
+  Ingest --> Extract[ExtractionAgent Grok]
+  Extract -->|missing_or_low_confidence| Extract
+  Extract --> Validate[ValidationAgent]
+  Validate -->|hard_fail| Reject[RejectAndLog]
+  Validate -->|pass_or_soft_flags| Approve[ApprovalAgent VP]
+  Approve -->|critique_loop| Approve
+  Approve -->|approved| Pay[PaymentAgent]
+  Approve -->|rejected| Reject
+  Validate --> Inventory[(SQLite inventory.db)]
+  Pay --> MockPay[mock_payment]
+```
+
 | Agent | Role |
 |---|---|
 | Ingestion | PDF / TXT / JSON / CSV / XML |
@@ -58,9 +66,14 @@ CLI / Streamlit
 | Approval | VP persona, $10k scrutiny, critique loop |
 | Payment | `mock_payment` only after validate **and** approve |
 
-Deep dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Tradeoffs: [docs/DECISIONS.md](docs/DECISIONS.md)
+## Results
 
-## Sample outcomes
+| Signal | Value |
+|---|---|
+| Sample suite STP | **8 / 16** approved + paid |
+| Hard-stopped rejects | **8 / 16** (stock / fraud / unknown SKU / bad data) |
+| Offline tests | **37 passed** |
+| Live Grok | INV-1001 APPROVED + paid (~6–10s) |
 
 | Invoice | Expected |
 |---|---|
@@ -70,17 +83,6 @@ Deep dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Tradeoffs: [docs/DECI
 | INV-1008 / 1016 | Reject — unknown items |
 | INV-1009 | Reject — negative qty / missing vendor |
 | INV-1005 / 1007 / 1013 | Reject — aggregated over-stock |
-
-## Docs map
-
-| Doc | Purpose |
-|---|---|
-| [DEMO.md](docs/DEMO.md) | 3-minute walkthrough + screenshots |
-| [RUNBOOK.md](docs/RUNBOOK.md) | Failure modes & operator fixes |
-| [DECISIONS.md](docs/DECISIONS.md) | Why LangGraph / parsers-first / one-way critique |
-| [BUSINESS_IMPACT.md](docs/BUSINESS_IMPACT.md) | PE pain → controls → next 30 days |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Graph, tools, state, threat model |
-| [SECURITY.md](docs/SECURITY.md) | Key handling before `git push` |
 
 ## Configuration
 
@@ -92,26 +94,18 @@ Deep dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Tradeoffs: [docs/DECI
 | `APPROVAL_AMOUNT_THRESHOLD` | `10000` | VP scrutiny threshold |
 | `CONFIDENCE_THRESHOLD` | `0.7` | Extraction retry threshold |
 
-On 403/no credits, the client **falls back** to the offline heuristic so demos still run.
+On 403/no credits, the client falls back to the offline heuristic automatically.
 
-## Security
+## Further reading
 
-- Keys live in **`.env` only** — never commit. `.gitignore` excludes `.env`, DBs, venv.
-- Rotate any key pasted into chat/tickets via [console.x.ai](https://console.x.ai).
-- Checklist: [docs/SECURITY.md](docs/SECURITY.md).
-
-## Evaluation checklist
-
-| Criterion | Evidence |
+| Doc | Purpose |
 |---|---|
-| Functionality | CLI/Streamlit e2e on case invoices |
-| Code quality | Typed models, tools, 37 tests, structured logs |
-| Agentic sophistication | LangGraph, tools, structured outputs, extract retry + VP critique |
-| Shipping mindset | Local MVP, mocked bank/inventory, explicit non-goals |
-| Presentation | README + decision/demo/runbook/business docs |
-| Above/beyond | Vendor risk, price anomalies, Streamlit, batch suite, resilient LLM |
-| UI/UX | Rich CLI timeline + Streamlit stage stepper |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Agents, tools, state, threat model |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Why LangGraph / parsers-first / one-way critique |
+| [docs/BUSINESS_IMPACT.md](docs/BUSINESS_IMPACT.md) | PE pain → controls → next 30 days |
+| [docs/DEMO.md](docs/DEMO.md) | 3-minute walkthrough |
+| [docs/RUNBOOK.md](docs/RUNBOOK.md) | Failure modes & fixes |
 
 ## Non-goals
 
-Real email ingest, ERP/banking rails, cloud deploy, SSO — deferred on purpose. See “next 30 days” in [docs/BUSINESS_IMPACT.md](docs/BUSINESS_IMPACT.md).
+Real email ingest, ERP/banking rails, cloud deploy, SSO — deferred on purpose (see next-30-days in [BUSINESS_IMPACT.md](docs/BUSINESS_IMPACT.md)).

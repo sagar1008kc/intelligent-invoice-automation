@@ -56,4 +56,4 @@ pytest -q
 - Critique will not promote a reject to approve (by design).
 - PDF text quality depends on `pdfplumber` extractability (no OCR engine).
 
-Related: [DEMO.md](DEMO.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [SECURITY.md](SECURITY.md)
+Related: [DEMO.md](DEMO.md) · [ARCHITECTURE.md](ARCHITECTURE.md)
