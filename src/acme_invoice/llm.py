@@ -336,10 +336,22 @@ def approval_from_llm_payload(payload: dict[str, Any]) -> ApprovalResult:
         decision = Decision(decision_raw)
     except ValueError:
         decision = Decision.REJECTED
+    try:
+        risk = float(payload.get("risk_score") or 0.0)
+    except (TypeError, ValueError):
+        risk = 0.0
+    # Normalize — models sometimes return 0–100 or values slightly > 1.
+    if risk > 100.0:
+        risk = 1.0
+    elif risk >= 2.0:
+        risk = risk / 100.0  # e.g. 80 → 0.80
+    elif risk > 1.0:
+        risk = 1.0  # slight overshoot (e.g. 1.2)
+    risk = max(0.0, min(1.0, risk))
     return ApprovalResult(
         decision=decision,
         rationale=str(payload.get("rationale") or ""),
-        risk_score=float(payload.get("risk_score") or 0.0),
+        risk_score=risk,
         requires_scrutiny=bool(payload.get("requires_scrutiny")),
         critique=payload.get("critique"),
     )

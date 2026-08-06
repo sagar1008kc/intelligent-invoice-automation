@@ -1,8 +1,6 @@
 # Architecture
 
-## Overview
-
-Local multi-agent AP pipeline for Acme Corp:
+Local multi-agent AP pipeline for Acme Corp.
 
 **Ingest → Extract → Validate → Approve (critique) → Pay / Reject**
 
@@ -16,12 +14,14 @@ CLI / Streamlit
                    SQLite inventory.db
 ```
 
-- **Orchestration:** LangGraph `StateGraph` — typed state, conditional edges, append-only stage audit.
-- **Reasoning:** xAI Grok (`langchain-xai` / OpenAI-compatible API).
-- **Controls:** SQLite inventory + vendor risk tools (deterministic).
-- **Surfaces:** CLI (`main.py`) and Streamlit (`app.py`).
+| Concern | Choice |
+|---|---|
+| Orchestration | LangGraph `StateGraph` — typed state, conditional edges, append-only stage audit |
+| Reasoning | xAI Grok (`langchain-xai` / OpenAI-compatible API) |
+| Controls | SQLite inventory + vendor risk tools (deterministic) |
+| Surfaces | CLI (`main.py`) and Streamlit (`app.py`) |
 
-For *why* these choices, see [DECISIONS.md](DECISIONS.md). For failure handling, see [RUNBOOK.md](RUNBOOK.md).
+Related: [DECISIONS.md](DECISIONS.md) · [RUNBOOK.md](RUNBOOK.md) · [DEMO.md](DEMO.md)
 
 ## Component map
 
@@ -35,7 +35,7 @@ For *why* these choices, see [DECISIONS.md](DECISIONS.md). For failure handling,
 | LLM | `llm.py` | Grok + heuristic + resilient fallback |
 | Config | `config.py` | Env-driven settings |
 
-## Graph flow (detail)
+## Graph flow
 
 ```text
 START
@@ -49,15 +49,18 @@ START
 ```
 
 ### Ingestion
+
 Load PDF/TXT/JSON/CSV/XML → `raw_text` + `source_format`. PDFs via `pdfplumber` (text layer; no OCR engine).
 
 ### Extraction
+
 1. Deterministic parsers for JSON/CSV/XML when line items exist.
 2. Else Grok structured JSON → Pydantic `ExtractedInvoice`.
 3. Self-correction edge re-prompts on incomplete extracts (missing items / empty identity at low confidence).
 4. Normalize catalog names (`Widget A` → `WidgetA`) before validation.
 
 ### Validation (tool use)
+
 `InventoryRepository` tool surface:
 
 - `get_stock(item)`
@@ -65,14 +68,18 @@ Load PDF/TXT/JSON/CSV/XML → `raw_text` + `source_format`. PDFs via `pdfplumber
 - `check_price_anomaly(item, unit_price)`
 - `check_vendor_risk(vendor)`
 
-**Hard fails:** unknown item, qty ≤ 0, qty > stock, zero-stock/suspicious item, blocked vendor, missing vendor, negative/zero amount.  
-**Soft flags:** non-USD, price drift, urgency language, suspicious due date, watchlist vendor → escalate scrutiny, do not auto-block.
+| Severity | Examples |
+|---|---|
+| Hard fail | Unknown item, qty ≤ 0, qty > stock, zero-stock/suspicious item, blocked vendor, missing vendor, negative/zero amount |
+| Soft flag | Non-USD, price drift, urgency language, suspicious due date, watchlist vendor → escalate scrutiny |
 
 ### Approval (VP + critique)
+
 Rule priors first, then Grok VP `{decision, rationale, risk_score, requires_scrutiny}`.  
 Elevated-risk approvals get one critique pass. Critique may overturn **approve → reject only**.
 
 ### Payment
+
 Dual gate: `validation.passed` **and** `approval == APPROVED` before `mock_payment`. Rejects log reason and never call the bank mock.
 
 ## State contract

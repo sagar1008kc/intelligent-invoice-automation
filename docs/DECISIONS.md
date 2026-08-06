@@ -1,6 +1,6 @@
 # Technical decisions
 
-Staff-level tradeoffs made for this prototype. Goal: ship a credible agentic AP MVP under ambiguity — not a framework tour.
+Staff-level tradeoffs for this prototype. Goal: ship a credible agentic AP MVP under ambiguity — not a framework tour.
 
 ## Orchestration: LangGraph (not CrewAI / AutoGen / pure custom)
 
@@ -39,12 +39,18 @@ Stock math, unknown SKUs, and blocked vendors are deterministic SQLite tool chec
 ## Approval: rule priors + VP persona + one-way critique
 
 1. Priors: amount threshold ($10k), hard/soft issue lists.
-2. Grok VP returns decision + rationale + risk score.
+2. Grok VP returns decision + rationale + risk score (clamped to 0–1).
 3. Critique may overturn `APPROVED → REJECTED` only (payment-safety bias).
 
 **Why not bidirectional critique:** Overturning rejects to approvals in a prototype invites leakage. Production would add a human queue instead.
 
 ## Scope cuts (ruthless)
 
-Out: real email ingest, ERP/banking rails, auth, cloud deploy, RAG over historical invoices.  
-In: working local pipeline, observable decisions, fraud/stock controls, CLI + Streamlit demo surface.
+| Out | In |
+|---|---|
+| Real email ingest | Working local pipeline |
+| ERP / banking rails | Observable decisions + audit JSON |
+| Auth / cloud deploy | Fraud / stock controls |
+| RAG over historical invoices | CLI + Streamlit demo surface |
+
+Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [BUSINESS_IMPACT.md](BUSINESS_IMPACT.md)

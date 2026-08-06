@@ -17,6 +17,11 @@ rg -n 'xai-[A-Za-z0-9]{20,}' --glob '!.venv/**' --glob '!.env'   # should print 
 
 ## Runtime posture (prototype)
 
-- Payment and banking are mocked locally (`mock_payment`).
-- Inventory validation uses local SQLite only.
-- Live Grok calls go to `api.x.ai`; offline `--heuristic` mode avoids network use for demos/CI.
+| Surface | Posture |
+|---|---|
+| Payment / banking | Mocked locally (`mock_payment`) |
+| Inventory validation | Local SQLite only |
+| Live Grok | Calls `api.x.ai` when key + credits present |
+| Offline demos / CI | `--heuristic` avoids network use |
+
+Related: [RUNBOOK.md](RUNBOOK.md) · [DEMO.md](DEMO.md)

@@ -32,6 +32,16 @@ st.set_page_config(
 
 SAMPLES = ROOT / "data" / "invoices"
 
+STAGE_LABELS = ["Ingest", "Extract", "Validate", "Approve", "Pay"]
+STAGE_ORDER = [
+    "ingestion",
+    "extraction",
+    "validation",
+    "approval",
+    "approval_critique",
+    "payment",
+]
+
 
 def _ensure_db() -> bool:
     settings = get_settings()
@@ -39,36 +49,109 @@ def _ensure_db() -> bool:
 
 
 def _stage_index(result) -> int:
-    order = ["ingestion", "extraction", "validation", "approval", "approval_critique", "payment"]
     seen = {s.stage for s in result.stages}
     idx = 0
-    for i, name in enumerate(order):
+    for i, name in enumerate(STAGE_ORDER):
         if name in seen:
             idx = i
     if result.final_status == Decision.APPROVED:
-        return len(order) - 1
+        return len(STAGE_ORDER) - 1
     return idx
 
 
-def main() -> None:
+def _inject_styles() -> None:
     st.markdown(
         """
         <style>
         .stApp {
           background:
-            radial-gradient(1200px 500px at 10% -10%, #d9e7ff 0%, transparent 55%),
-            radial-gradient(900px 400px at 100% 0%, #e8fff4 0%, transparent 50%),
-            linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
+            radial-gradient(1100px 480px at 8% -12%, #dbeafe 0%, transparent 55%),
+            radial-gradient(900px 420px at 100% 0%, #ecfdf5 0%, transparent 48%),
+            linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
         }
-        h1, h2, h3 { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, serif; }
-        .metric-quiet { color: #334155; }
+        [data-testid="stSidebar"] {
+          background: rgba(255, 255, 255, 0.88);
+          border-right: 1px solid #e2e8f0;
+        }
+        h1 {
+          font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+          letter-spacing: -0.02em;
+          margin-bottom: 0.15rem !important;
+        }
+        h2, h3 {
+          font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+        }
+        .acme-caption {
+          color: #475569;
+          font-size: 0.95rem;
+          margin-bottom: 1.25rem;
+        }
+        .stage-pill {
+          text-align: center;
+          padding: 0.55rem 0.35rem;
+          border-radius: 10px;
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          font-weight: 600;
+          font-size: 0.85rem;
+        }
+        div[data-testid="stMetric"] {
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 0.75rem 0.9rem;
+        }
+        .stButton > button[kind="primary"] {
+          border-radius: 10px;
+          font-weight: 600;
+        }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
+
+def _render_stage_track(result) -> None:
+    current = min(_stage_index(result), len(STAGE_LABELS) - 1)
+    cols = st.columns(len(STAGE_LABELS))
+    for i, (col, label) in enumerate(zip(cols, STAGE_LABELS)):
+        done = i <= current
+        failed = result.final_status == Decision.REJECTED and i == current
+        if failed:
+            color, marker = "#b91c1c", "●"
+        elif done:
+            color, marker = "#0f766e", "●"
+        else:
+            color, marker = "#94a3b8", "○"
+        col.markdown(
+            f"<div class='stage-pill' style='color:{color}'>{marker}<br>{label}</div>",
+            unsafe_allow_html=True,
+        )
+
+
+def _stages_frame(result) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "stage": s.stage,
+                "status": s.status,
+                "ms": round(s.duration_ms, 2),
+                "message": s.message,
+            }
+            for s in result.stages
+        ]
+    )
+
+
+def main() -> None:
+    _inject_styles()
+
     st.title("Acme Invoice Automation")
-    st.caption("Multi-agent AP workflow — Ingest → Extract → Validate → Approve → Pay")
+    st.markdown(
+        "<p class='acme-caption'>Multi-agent AP workflow — "
+        "Ingest → Extract → Validate → Approve → Pay</p>",
+        unsafe_allow_html=True,
+    )
 
     with st.sidebar:
         st.header("Controls")
@@ -78,7 +161,7 @@ def main() -> None:
             help="Use deterministic offline reasoning instead of live Grok",
         )
         if not _ensure_db():
-            st.error("inventory.db missing. Run: python scripts/init_db.py")
+            st.error("inventory.db missing. Run: `python scripts/init_db.py`")
             st.stop()
 
         st.subheader("Inventory snapshot")
@@ -94,7 +177,7 @@ def main() -> None:
                 for i in repo.list_inventory()
             ]
         )
-        st.dataframe(inv_df, use_container_width=True, hide_index=True)
+        st.dataframe(inv_df, width="stretch", hide_index=True)
 
     tab_single, tab_batch = st.tabs(["Single invoice", "Batch suite"])
 
@@ -118,7 +201,7 @@ def main() -> None:
                 uploaded_bytes = uploaded.getvalue()
                 uploaded_name = uploaded.name
 
-        run = st.button("Run pipeline", type="primary")
+        run = st.button("Run pipeline", type="primary", width="stretch")
         if run:
             llm = HeuristicLLMClient() if use_heuristic else get_llm_client()
             if uploaded_bytes is not None and uploaded_name:
@@ -135,19 +218,7 @@ def main() -> None:
             with st.spinner("Agents working..."):
                 result = run_invoice_pipeline(path, llm=llm)
 
-            steps = ["Ingest", "Extract", "Validate", "Approve", "Pay"]
-            current = min(_stage_index(result), len(steps) - 1)
-            cols = st.columns(len(steps))
-            for i, (col, label) in enumerate(zip(cols, steps)):
-                marker = "●" if i <= current else "○"
-                color = "#0f766e" if i <= current else "#94a3b8"
-                if result.final_status == Decision.REJECTED and i == current:
-                    color = "#b91c1c"
-                col.markdown(
-                    f"<div style='text-align:center;color:{color};font-weight:600'>"
-                    f"{marker}<br>{label}</div>",
-                    unsafe_allow_html=True,
-                )
+            _render_stage_track(result)
 
             status_color = "green" if result.final_status == Decision.APPROVED else "red"
             st.markdown(
@@ -168,8 +239,10 @@ def main() -> None:
                         st.success("No issues — validation passed")
                     else:
                         st.dataframe(
-                            pd.DataFrame([i.model_dump() for i in result.validation.issues]),
-                            use_container_width=True,
+                            pd.DataFrame(
+                                [i.model_dump() for i in result.validation.issues]
+                            ),
+                            width="stretch",
                             hide_index=True,
                         )
                 st.subheader("VP rationale")
@@ -187,33 +260,20 @@ def main() -> None:
                         st.code(result.payment.transaction_id)
                 st.subheader("Stage timeline")
                 if result.stages:
-                    st.dataframe(
-                        pd.DataFrame(
-                            [
-                                {
-                                    "stage": s.stage,
-                                    "status": s.status,
-                                    "ms": s.duration_ms,
-                                    "message": s.message,
-                                }
-                                for s in result.stages
-                            ]
-                        ),
-                        use_container_width=True,
-                        hide_index=True,
-                    )
+                    st.dataframe(_stages_frame(result), width="stretch", hide_index=True)
 
             st.download_button(
                 "Download audit JSON",
                 data=result.model_dump_json(indent=2),
                 file_name=f"audit_{Path(result.invoice_path).stem}.json",
                 mime="application/json",
+                width="content",
             )
 
     with tab_batch:
         st.write("Run the full sample suite and score outcomes.")
         dedupe = st.checkbox("Skip PDF when TXT twin exists", value=True)
-        if st.button("Run batch suite", type="primary"):
+        if st.button("Run batch suite", type="primary", width="stretch"):
             llm = HeuristicLLMClient() if use_heuristic else get_llm_client()
             files = list_invoice_files(SAMPLES)
             files = [p for p in files if "revised" not in p.name]
@@ -246,14 +306,19 @@ def main() -> None:
                 )
                 progress.progress((i + 1) / len(files))
             df = pd.DataFrame(rows)
-            st.dataframe(df, use_container_width=True, hide_index=True)
-            approved = (df["status"] == Decision.APPROVED.value).sum()
-            st.metric("Approved", f"{approved}/{len(df)}")
+            st.dataframe(df, width="stretch", hide_index=True)
+            approved = int((df["status"] == Decision.APPROVED.value).sum())
+            rejected = len(df) - approved
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Approved", f"{approved}/{len(df)}")
+            m2.metric("Rejected", f"{rejected}/{len(df)}")
+            m3.metric("STP rate", f"{(approved / len(df) * 100):.0f}%")
             st.download_button(
                 "Download batch results",
                 data=df.to_json(orient="records", indent=2),
                 file_name="batch_results.json",
                 mime="application/json",
+                width="content",
             )
 
 

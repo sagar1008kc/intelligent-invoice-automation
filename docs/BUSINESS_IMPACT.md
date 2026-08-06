@@ -38,6 +38,8 @@ Offline heuristic batch on the Galatiq fixtures (`--batch --dedupe-pdf`):
 STP examples: INV-1001, 1004, 1006, 1010, 1011, 1012, 1014, 1015.  
 Reject examples: INV-1002 (overstock), 1003 (fraud), 1008/1016 (unknown items), 1009 (integrity).
 
+Live UI and CLI captures: [DEMO.md](DEMO.md).
+
 ## Pilot framing for PE / finance stakeholders
 
 Directional — not audited ROI:

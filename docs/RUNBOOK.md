@@ -19,6 +19,7 @@ Failure modes and what to do. Prototype-oriented — not a production SRE playbo
 | HTTP 403 / no credits | Team has no license | Add credits at console.x.ai **or** run with `--heuristic` |
 | Slow extraction (>15s) | Model latency | Expected on live Grok; use `--heuristic` for demos if needed |
 | Falls back silently to heuristic | Resilient client caught 401/403/timeout | Check logs for `Grok API unavailable`; restore credits for live scoring |
+| Approval parse error on `risk_score` | Model returned value outside 0–1 | Client clamps/normalizes; upgrade package if still seen |
 
 ## Pipeline outcomes (how to read them)
 
@@ -41,6 +42,9 @@ python main.py --invoice_path=data/invoices/ --batch --dedupe-pdf --heuristic
 # Machine-readable audit
 python main.py --invoice_path=data/invoices/invoice_1002.txt --output json
 
+# Ops UI
+streamlit run app.py
+
 # Tests (always offline)
 pytest -q
 ```
@@ -51,3 +55,5 @@ pytest -q
 - Does not reserve/decrement stock after payment.
 - Critique will not promote a reject to approve (by design).
 - PDF text quality depends on `pdfplumber` extractability (no OCR engine).
+
+Related: [DEMO.md](DEMO.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [SECURITY.md](SECURITY.md)

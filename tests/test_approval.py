@@ -67,3 +67,18 @@ def test_critique_triggered_for_soft_flags(heuristic_llm):
     assert should_critique(state) == "critique"
     crit = critique_agent(state, llm=heuristic_llm)
     assert crit["critique_done"] is True
+
+
+def test_approval_risk_score_normalized():
+    from acme_invoice.llm import approval_from_llm_payload
+
+    percent = approval_from_llm_payload(
+        {"decision": "APPROVED", "rationale": "ok", "risk_score": 80}
+    )
+    assert abs(percent.risk_score - 0.8) < 1e-9
+
+    overshoot = approval_from_llm_payload(
+        {"decision": "REJECTED", "rationale": "x", "risk_score": 1.5}
+    )
+    assert overshoot.risk_score == 1.0
+    assert overshoot.decision == Decision.REJECTED

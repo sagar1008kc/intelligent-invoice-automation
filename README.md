@@ -4,7 +4,7 @@ Multi-agent AP prototype for **Acme Corp** ([Galatiq case](https://github.com/ga
 
 **Ingest → Extract → Validate → Approve (reflect) → Pay / Reject**
 
-LangGraph + xAI Grok. Local SQLite controls. Mock payments. CLI + Streamlit.
+LangGraph + xAI Grok · Local SQLite controls · Mock payments · CLI + Streamlit
 
 > **60-second proof:** clean invoices pay in minutes; stock mismatches and fraud never hit the bank mock.  
 > `python main.py --invoice_path=data/invoices/invoice_1001.txt`
@@ -13,12 +13,12 @@ LangGraph + xAI Grok. Local SQLite controls. Mock payments. CLI + Streamlit.
 
 | Signal | Value |
 |---|---|
-| Sample suite STP | **8 / 16 approved + paid** |
+| Sample suite STP | **8 / 16 approved + paid** (heuristic) |
 | Hard-stopped rejects | **8 / 16** (stock / fraud / unknown SKU / bad data) |
 | Offline tests | **37 passed** |
 | Live Grok | INV-1001 APPROVED + paid (~6–10s) |
 
-Full business framing: [docs/BUSINESS_IMPACT.md](docs/BUSINESS_IMPACT.md) · Demo script: [docs/DEMO.md](docs/DEMO.md)
+Screenshots and walkthrough: [docs/DEMO.md](docs/DEMO.md) · Business framing: [docs/BUSINESS_IMPACT.md](docs/BUSINESS_IMPACT.md)
 
 ## Quick start
 
@@ -36,7 +36,7 @@ streamlit run app.py
 pytest -q
 ```
 
-Offline without credits: add `--heuristic`.
+Offline without credits: add `--heuristic` (CLI) or toggle **Offline heuristic LLM** in the UI.
 
 ## Architecture
 
@@ -75,7 +75,7 @@ Deep dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Tradeoffs: [docs/DECI
 
 | Doc | Purpose |
 |---|---|
-| [DEMO.md](docs/DEMO.md) | 3-minute reviewer walkthrough |
+| [DEMO.md](docs/DEMO.md) | 3-minute walkthrough + screenshots |
 | [RUNBOOK.md](docs/RUNBOOK.md) | Failure modes & operator fixes |
 | [DECISIONS.md](docs/DECISIONS.md) | Why LangGraph / parsers-first / one-way critique |
 | [BUSINESS_IMPACT.md](docs/BUSINESS_IMPACT.md) | PE pain → controls → next 30 days |
@@ -114,4 +114,4 @@ On 403/no credits, the client **falls back** to the offline heuristic so demos s
 
 ## Non-goals
 
-Real email ingest, ERP/banking rails, cloud deploy, SSO — deferred on purpose. See “next 30 days” in [BUSINESS_IMPACT.md](docs/BUSINESS_IMPACT.md).
+Real email ingest, ERP/banking rails, cloud deploy, SSO — deferred on purpose. See “next 30 days” in [docs/BUSINESS_IMPACT.md](docs/BUSINESS_IMPACT.md).
