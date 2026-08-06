@@ -7,7 +7,8 @@ Multi-agent AP prototype for **Acme Corp** ([Galatiq case](https://github.com/ga
 LangGraph + xAI Grok · Local SQLite · Mock payments · CLI + Streamlit
 
 > Clean invoices pay in minutes; stock mismatches and fraud never hit the bank mock.  
-> `python main.py --invoice_path=data/invoices/invoice_1001.txt`
+> `python main.py --invoice_path=data/invoices/invoice_1001.txt`  
+> Walkthrough + screenshots: [docs/DEMO.md](docs/DEMO.md)
 
 ## Quick start
 
@@ -26,7 +27,18 @@ pytest -q
 ```
 
 No API credits? Add `--heuristic` (or toggle offline mode in Streamlit).  
-Put keys only in `.env` — never commit it. Rotate any key shared in chat via [console.x.ai](https://console.x.ai).
+Keys live in `.env` only — never commit. Rotate shared keys at [console.x.ai](https://console.x.ai).
+
+## Why this exists
+
+Acme loses ~$2M/year on manual AP (~30% errors, ~5-day email approvals). This MVP shows:
+
+- **Straight-through processing** for clean invoices (minutes, not days)
+- **Hard stops** for overstock, unknown SKUs, and fraud before payment
+- **Auditable VP decisions** ($10k scrutiny + critique) instead of email chains
+
+Out of scope (on purpose): email ingest, ERP/bank rails, cloud deploy, SSO.  
+Next if embedded: ingest → PO match → human queue → real payment + stock reserve.
 
 ## Architecture
 
@@ -66,6 +78,18 @@ flowchart TD
 | Approval | VP persona, $10k scrutiny, critique loop |
 | Payment | `mock_payment` only after validate **and** approve |
 
+**Hard fails** short-circuit to reject (no payment). **Soft flags** (EUR, price drift, urgency) escalate VP scrutiny.
+
+## Design choices (short)
+
+| Decision | Why |
+|---|---|
+| LangGraph | Explicit state, retry/critique edges, easy to test vs CrewAI/AutoGen |
+| Parsers before Grok | JSON/CSV/XML stay deterministic; LLM for messy TXT/PDF only |
+| Tools for stock/vendor | Money controls in code; model for judgment under uncertainty |
+| Critique approve→reject only | Payment-safety bias; production would add a human queue |
+| Heuristic fallback | Demos/CI work without credits; live Grok is the scoring path |
+
 ## Results
 
 | Signal | Value |
@@ -94,18 +118,11 @@ flowchart TD
 | `APPROVAL_AMOUNT_THRESHOLD` | `10000` | VP scrutiny threshold |
 | `CONFIDENCE_THRESHOLD` | `0.7` | Extraction retry threshold |
 
-On 403/no credits, the client falls back to the offline heuristic automatically.
+## Troubleshooting
 
-## Further reading
-
-| Doc | Purpose |
+| Symptom | Fix |
 |---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Agents, tools, state, threat model |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | Why LangGraph / parsers-first / one-way critique |
-| [docs/BUSINESS_IMPACT.md](docs/BUSINESS_IMPACT.md) | PE pain → controls → next 30 days |
-| [docs/DEMO.md](docs/DEMO.md) | 3-minute walkthrough |
-| [docs/RUNBOOK.md](docs/RUNBOOK.md) | Failure modes & fixes |
-
-## Non-goals
-
-Real email ingest, ERP/banking rails, cloud deploy, SSO — deferred on purpose (see next-30-days in [BUSINESS_IMPACT.md](docs/BUSINESS_IMPACT.md)).
+| `Inventory database not found` | `python scripts/init_db.py --force` |
+| `ModuleNotFoundError: acme_invoice` | `pip install -e .` in `.venv` |
+| HTTP 401 / 403 from xAI | Fix key / add credits, or use `--heuristic` |
+| Invoice path not found | Run from repo root: `data/invoices/...` |
